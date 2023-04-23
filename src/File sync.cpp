@@ -16,6 +16,7 @@ void read_directory(const fs::path& path, std::vector<fs::path>& files)
     {
         if (entry.is_directory())
         {
+            files.push_back(entry.path());
             read_directory(entry.path(), files);
         }
     }
@@ -50,35 +51,75 @@ void sync_folders(const std::vector<fs::path>& folder1_files, const std::vector<
     std::ofstream log_file(log_path);
     
 
-    // Iterate over all files in the first folder
-    for (const auto& file1_path : folder1_files) {
+    
+    for (const auto& file1_path : folder1_files) 
+    {
         std::string file2_path = folder2_path + file1_path.string().substr(folder1_path.size());
 
-        // If the corresponding file exists in the second folder, compare the contents of the two files
-        if (std::find(folder2_files.begin(), folder2_files.end(), file2_path) != folder2_files.end()) {
-            if (!compare_files(file1_path.string(), file2_path)) {
+        
+        if (std::find(folder2_files.begin(), folder2_files.end(), file2_path) != folder2_files.end()) 
+        {
+            if (fs::is_directory(file1_path) && !fs::is_directory(file2_path))
+            {
                 fs::remove(file2_path);
+                fs::create_directory(file2_path);
+                log_file << "[" << std::setfill('0') << std::setw(2) << local_time.tm_hour << ":" << std::setfill('0') << std::setw(2) << local_time.tm_min << ":" << std::setfill('0') << std::setw(2) << local_time.tm_sec << "] " << "Updated " << file2_path << " to " << folder2_path << std::endl;
+                std::cout << "[" << std::setfill('0') << std::setw(2) << local_time.tm_hour << ":" << std::setfill('0') << std::setw(2) << local_time.tm_min << ":" << std::setfill('0') << std::setw(2) << local_time.tm_sec << "] " << "Updated " << file2_path << " to " << folder2_path << std::endl;
+            
+            }
+            if (!fs::is_directory(file1_path) && fs::is_directory(file2_path))
+            {
+                fs::remove_all(file2_path);
                 fs::copy_file(file1_path, file2_path);
                 log_file << "[" << std::setfill('0') << std::setw(2) << local_time.tm_hour << ":" << std::setfill('0') << std::setw(2) << local_time.tm_min << ":" << std::setfill('0') << std::setw(2) << local_time.tm_sec << "] " << "Updated " << file2_path << " to " << folder2_path << std::endl;
                 std::cout << "[" << std::setfill('0') << std::setw(2) << local_time.tm_hour << ":" << std::setfill('0') << std::setw(2) << local_time.tm_min << ":" << std::setfill('0') << std::setw(2) << local_time.tm_sec << "] " << "Updated " << file2_path << " to " << folder2_path << std::endl;
+            
+            }
+            if(fs::is_directory(file1_path) && fs::is_directory(file2_path))
+            {
+                continue;
+            }
+            else
+            {
+                if (!compare_files(file1_path.string(), file2_path))
+                {
+                    fs::remove(file2_path);
+                    fs::copy_file(file1_path, file2_path);
+                    log_file << "[" << std::setfill('0') << std::setw(2) << local_time.tm_hour << ":" << std::setfill('0') << std::setw(2) << local_time.tm_min << ":" << std::setfill('0') << std::setw(2) << local_time.tm_sec << "] " << "Updated " << file2_path << " to " << folder2_path << std::endl;
+                    std::cout << "[" << std::setfill('0') << std::setw(2) << local_time.tm_hour << ":" << std::setfill('0') << std::setw(2) << local_time.tm_min << ":" << std::setfill('0') << std::setw(2) << local_time.tm_sec << "] " << "Updated " << file2_path << " to " << folder2_path << std::endl;
+                }
             }
         }
-        // If the file does not exist in the second folder, create a copy of the file from the first folder in the second folder
+        
         else {
             fs::create_directories(fs::path(file2_path).parent_path());
-            fs::copy_file(file1_path, file2_path);
+            if (fs::is_directory(file1_path))
+            {
+                fs::create_directory(file2_path);
+            }
+            else
+            {
+                fs::copy_file(file1_path, file2_path);
+            }
             log_file << "[" << std::setfill('0') << std::setw(2) << local_time.tm_hour << ":" << std::setfill('0') << std::setw(2) << local_time.tm_min << ":" << std::setfill('0') << std::setw(2) << local_time.tm_sec << "] " << "Created" << file2_path << " to " << folder2_path << std::endl;
             std::cout << "[" << std::setfill('0') << std::setw(2) << local_time.tm_hour << ":" << std::setfill('0') << std::setw(2) << local_time.tm_min << ":" << std::setfill('0') << std::setw(2) << local_time.tm_sec << "] " << "Created" << file2_path << " to " << folder2_path << std::endl;
         }
     }
 
-    // Iterate over all files in the second folder
+    
     for (const auto& file2_path : folder2_files) {
         std::string file1_path = folder1_path + file2_path.string().substr(folder2_path.size());
 
-        // If the corresponding file does not exist in the first folder, delete the file from the second folder
+        
         if (std::find(folder1_files.begin(), folder1_files.end(), file1_path) == folder1_files.end()) {
-            fs::remove(file2_path);
+            if(fs::is_directory(file2_path))
+            {
+                fs::remove_all(file2_path);
+            }
+            else
+            {
+                fs::remove(file2_path);
+            }
             log_file << "[" << std::setfill('0') << std::setw(2) << local_time.tm_hour << ":" << std::setfill('0') << std::setw(2) << local_time.tm_min << ":" << std::setfill('0') << std::setw(2) << local_time.tm_sec << "] " << "Removed " << file2_path << " from " << folder2_path << std::endl;
             std::cout << "[" << std::setfill('0') << std::setw(2) << local_time.tm_hour << ":" << std::setfill('0') << std::setw(2) << local_time.tm_min << ":" << std::setfill('0') << std::setw(2) << local_time.tm_sec << "] " << "Removed " << file2_path << " from " << folder2_path << std::endl;
         }
@@ -87,23 +128,18 @@ void sync_folders(const std::vector<fs::path>& folder1_files, const std::vector<
 
 int main(int argc, char* argv[])
 {
-    if (argc < 4) {
-        std::cerr << "Usage: " << argv[0] << " <original_folder> <sync_folder> <log_file>\n";
+    if (argc < 5) {
+        std::cerr << "Usage: " << argv[0] << " <original_folder> <sync_folder> <log_file> <interval>\n";
         return 1;
     }
     const std::string path = argv[1];
     const std::string dest_dir = argv[2];
     const std::string log_file = argv[3];
-    std::ofstream sync_file_stream(dest_dir);
-    if (!sync_file_stream) 
-    {
-        std::cerr << "Sync file already exists. Using folder.\n";
-    }
-    sync_file_stream.close();
-    std::ofstream log_file_stream(log_file);
+    const std::string interval = argv[4];
+    std::ofstream log_file_stream(log_file, std::ios::app);
     if (!log_file_stream) 
     {
-        std::cerr << "Log file already exists. Using file.\n";        
+        std::cerr << "Unable to create log\n";        
     }
     log_file_stream.close();
 
@@ -114,19 +150,11 @@ int main(int argc, char* argv[])
     std::vector<fs::path> Sync;
     std::vector<fs::path> files;
     
-    read_directory(dest_dir, Sync);
-    read_directory(path, files);
-
     std::ofstream log(log_file, std::ios::app);
     while (true)
     {
-        std::string input;
-        std::getline(std::cin, input);
-
-        // Check if the user entered "end"
-        if (input == "end") {
-            break; // Exit the loop
-        }
+        read_directory(dest_dir, Sync);
+        read_directory(path, files);
         auto current_time = std::chrono::system_clock::now();
         std::time_t current_time_t = std::chrono::system_clock::to_time_t(current_time);
         ctime_s(timestamp, sizeof(timestamp), &current_time_t);
@@ -135,8 +163,8 @@ int main(int argc, char* argv[])
        
         sync_folders(files,Sync,path ,dest_dir,log_file);
 
-        // wait for 5 minutes before the next sync
-        std::this_thread::sleep_for(std::chrono::minutes(5));
+        
+        std::this_thread::sleep_for(std::chrono::seconds(std::stoi(interval)));
     }
 
     
